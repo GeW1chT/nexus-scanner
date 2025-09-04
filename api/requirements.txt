@@ -1,0 +1,36 @@
+# Nexus-Scanner API Requirements
+# FastAPI ve ilgili bağımlılıklar
+
+# Web Framework
+fastapi==0.104.1
+uvicorn[standard]==0.24.0
+
+# Authentication & Security
+passlib[bcrypt]==1.7.4
+python-jose[cryptography]==3.3.0
+python-multipart==0.0.6
+
+# Database
+sqlalchemy==2.0.23
+alembic==1.12.1
+
+# Validation
+pydantic==2.5.0
+email-validator==2.1.0
+
+# HTTP Client
+httpx==0.25.2
+requests==2.31.0
+
+# Utilities
+python-dotenv==1.0.0
+click==8.1.7
+rich==13.7.0
+
+# Development
+pytest==7.4.3
+pytest-asyncio==0.21.1
+pytest-cov==4.1.0
+
+# Production
+gunicorn==21.2.0

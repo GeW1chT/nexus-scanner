@@ -1,0 +1,228 @@
+# Nexus-Scanner API Docker Compose
+# Development ve production ortamları için
+
+version: '3.8'
+
+services:
+  # PostgreSQL Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: nexus-postgres
+    environment:
+      POSTGRES_DB: nexus_scanner
+      POSTGRES_USER: nexus_user
+      POSTGRES_PASSWORD: nexus_password_2024
+      POSTGRES_INITDB_ARGS: "--encoding=UTF-8 --lc-collate=C --lc-ctype=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    ports:
+      - "5432:5432"
+    networks:
+      - nexus-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nexus_user -d nexus_scanner"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis Cache
+  redis:
+    image: redis:7-alpine
+    container_name: nexus-redis
+    command: redis-server --appendonly yes --requirepass redis_password_2024
+    volumes:
+      - redis_data:/data
+    ports:
+      - "6379:6379"
+    networks:
+      - nexus-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "redis-cli", "--raw", "incr", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  # Nexus-Scanner API
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-api
+    environment:
+      # Database
+      DATABASE_URL: postgresql://nexus_user:nexus_password_2024@postgres:5432/nexus_scanner
+      
+      # Redis
+      REDIS_URL: redis://:redis_password_2024@redis:6379/0
+      
+      # JWT
+      JWT_SECRET_KEY: your-super-secret-jwt-key-change-in-production
+      JWT_ALGORITHM: HS256
+      JWT_EXPIRE_MINUTES: 1440
+      
+      # API
+      API_HOST: 0.0.0.0
+      API_PORT: 8000
+      API_WORKERS: 4
+      API_DEBUG: false
+      
+      # Security
+      ALLOWED_HOSTS: localhost,127.0.0.1,api
+      CORS_ORIGINS: http://localhost:3000,http://127.0.0.1:3000
+      
+      # Scanning
+      MAX_CONCURRENT_SCANS: 5
+      SCAN_TIMEOUT: 3600
+      
+      # Reports
+      REPORTS_DIR: /app/reports
+      MAX_REPORT_SIZE: 104857600
+      
+      # Logging
+      LOG_LEVEL: INFO
+      LOG_FILE: /app/logs/nexus-api.log
+    volumes:
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    ports:
+      - "8000:8000"
+    networks:
+      - nexus-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  # Nginx Reverse Proxy
+  nginx:
+    image: nginx:alpine
+    container_name: nexus-nginx
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    ports:
+      - "80:80"
+      - "443:443"
+    networks:
+      - nexus-network
+    depends_on:
+      - api
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--quiet", "--tries=1", "--spider", "http://localhost/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  # Celery Worker (Background Tasks)
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-worker
+    command: celery -A main.celery worker --loglevel=info --concurrency=4
+    environment:
+      # Database
+      DATABASE_URL: postgresql://nexus_user:nexus_password_2024@postgres:5432/nexus_scanner
+      
+      # Redis
+      REDIS_URL: redis://:redis_password_2024@redis:6379/0
+      CELERY_BROKER_URL: redis://:redis_password_2024@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:redis_password_2024@redis:6379/2
+      
+      # Scanning
+      MAX_CONCURRENT_SCANS: 3
+      SCAN_TIMEOUT: 3600
+      
+      # Logging
+      LOG_LEVEL: INFO
+      LOG_FILE: /app/logs/nexus-worker.log
+    volumes:
+      - ./reports:/app/reports
+      - ./logs:/app/logs
+      - ./uploads:/app/uploads
+    networks:
+      - nexus-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Celery Beat (Scheduled Tasks)
+  scheduler:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-scheduler
+    command: celery -A main.celery beat --loglevel=info --schedule=/app/celerybeat-schedule
+    environment:
+      # Database
+      DATABASE_URL: postgresql://nexus_user:nexus_password_2024@postgres:5432/nexus_scanner
+      
+      # Redis
+      REDIS_URL: redis://:redis_password_2024@redis:6379/0
+      CELERY_BROKER_URL: redis://:redis_password_2024@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:redis_password_2024@redis:6379/2
+      
+      # Logging
+      LOG_LEVEL: INFO
+      LOG_FILE: /app/logs/nexus-scheduler.log
+    volumes:
+      - ./logs:/app/logs
+      - scheduler_data:/app
+    networks:
+      - nexus-network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # Flower (Celery Monitoring)
+  flower:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexus-flower
+    command: celery -A main.celery flower --port=5555
+    environment:
+      CELERY_BROKER_URL: redis://:redis_password_2024@redis:6379/1
+      CELERY_RESULT_BACKEND: redis://:redis_password_2024@redis:6379/2
+      FLOWER_BASIC_AUTH: admin:flower_password_2024
+    ports:
+      - "5555:5555"
+    networks:
+      - nexus-network
+    depends_on:
+      - redis
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
+    driver: local
+  redis_data:
+    driver: local
+  scheduler_data:
+    driver: local
+
+networks:
+  nexus-network:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.20.0.0/16
