@@ -1,0 +1,227 @@
+<!DOCTYPE html>
+<html lang="tr">
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#1976d2" />
+    <meta name="description" content="Nexus-Scanner - Kapsamlı Web Güvenlik Tarayıcısı. SQL injection, XSS, port tarama ve güvenlik açığı tespiti." />
+    <meta name="keywords" content="güvenlik tarayıcısı, penetrasyon testi, web güvenliği, SQL injection, XSS, port tarama, güvenlik açığı" />
+    <meta name="author" content="Nexus-Scanner Team" />
+    
+    <!-- Open Graph Meta Tags -->
+    <meta property="og:title" content="Nexus-Scanner - Web Güvenlik Tarayıcısı" />
+    <meta property="og:description" content="Kapsamlı web güvenlik taramaları ve güvenlik açığı tespiti için gelişmiş araç." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://nexus-scanner.com" />
+    <meta property="og:image" content="%PUBLIC_URL%/og-image.png" />
+    
+    <!-- Twitter Card Meta Tags -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Nexus-Scanner - Web Güvenlik Tarayıcısı" />
+    <meta name="twitter:description" content="Kapsamlı web güvenlik taramaları ve güvenlik açığı tespiti için gelişmiş araç." />
+    <meta name="twitter:image" content="%PUBLIC_URL%/twitter-image.png" />
+    
+    <!-- Security Headers -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline' 'unsafe-eval'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self' http://localhost:8000 ws://localhost:3000;" />
+    <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+    <meta http-equiv="X-Frame-Options" content="DENY" />
+    <meta http-equiv="X-XSS-Protection" content="1; mode=block" />
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin" />
+    
+    <!-- Apple Touch Icon -->
+    <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
+    
+    <!-- Manifest -->
+    <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
+    
+    <!-- Material Icons -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons" rel="stylesheet" />
+    
+    <!-- Favicon -->
+    <link rel="shortcut icon" href="%PUBLIC_URL%/favicon.ico" type="image/x-icon" />
+    <link rel="icon" type="image/png" sizes="32x32" href="%PUBLIC_URL%/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="%PUBLIC_URL%/favicon-16x16.png" />
+    
+    <title>Nexus-Scanner - Web Güvenlik Tarayıcısı</title>
+    
+    <style>
+      /* Loading Screen Styles */
+      #loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #1976d2 0%, #1565c0 100%);
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        z-index: 9999;
+        color: white;
+        font-family: 'Inter', sans-serif;
+      }
+      
+      .loading-logo {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 20px;
+        animation: pulse 2s infinite;
+      }
+      
+      .loading-text {
+        font-size: 24px;
+        font-weight: 600;
+        margin-bottom: 10px;
+        text-align: center;
+      }
+      
+      .loading-subtitle {
+        font-size: 14px;
+        opacity: 0.8;
+        text-align: center;
+      }
+      
+      .loading-spinner {
+        width: 40px;
+        height: 40px;
+        border: 3px solid rgba(255, 255, 255, 0.3);
+        border-top: 3px solid white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+        margin-top: 20px;
+      }
+      
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+      
+      @keyframes spin {
+        0% { transform: rotate(0deg); }
+        100% { transform: rotate(360deg); }
+      }
+      
+      /* Hide loading screen when React app loads */
+      .app-loaded #loading-screen {
+        display: none;
+      }
+      
+      /* Global Styles */
+      * {
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+      
+      body {
+        font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
+          'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        background-color: #f5f5f5;
+        line-height: 1.6;
+      }
+      
+      code {
+        font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', 'Courier New', monospace;
+      }
+      
+      /* Scrollbar Styles */
+      ::-webkit-scrollbar {
+        width: 8px;
+        height: 8px;
+      }
+      
+      ::-webkit-scrollbar-track {
+        background: #f1f1f1;
+        border-radius: 4px;
+      }
+      
+      ::-webkit-scrollbar-thumb {
+        background: #c1c1c1;
+        border-radius: 4px;
+      }
+      
+      ::-webkit-scrollbar-thumb:hover {
+        background: #a8a8a8;
+      }
+      
+      /* Focus Styles */
+      *:focus {
+        outline: 2px solid #1976d2;
+        outline-offset: 2px;
+      }
+      
+      /* Print Styles */
+      @media print {
+        body {
+          background: white !important;
+        }
+        
+        .no-print {
+          display: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: Arial, sans-serif;">
+        <h2>JavaScript Gerekli</h2>
+        <p>Bu uygulamayı kullanmak için JavaScript'i etkinleştirmeniz gerekiyor.</p>
+        <p>Lütfen tarayıcınızın ayarlarından JavaScript'i etkinleştirin ve sayfayı yenileyin.</p>
+      </div>
+    </noscript>
+    
+    <!-- Loading Screen -->
+    <div id="loading-screen">
+      <svg class="loading-logo" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/>
+      </svg>
+      <div class="loading-text">Nexus-Scanner</div>
+      <div class="loading-subtitle">Web Güvenlik Tarayıcısı yükleniyor...</div>
+      <div class="loading-spinner"></div>
+    </div>
+    
+    <!-- React App Root -->
+    <div id="root"></div>
+    
+    <!-- Service Worker Registration -->
+    <script>
+      // Register service worker for PWA functionality
+      if ('serviceWorker' in navigator) {
+        window.addEventListener('load', function() {
+          navigator.serviceWorker.register('%PUBLIC_URL%/sw.js')
+            .then(function(registration) {
+              console.log('SW registered: ', registration);
+            })
+            .catch(function(registrationError) {
+              console.log('SW registration failed: ', registrationError);
+            });
+        });
+      }
+      
+      // Hide loading screen when React app loads
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          document.body.classList.add('app-loaded');
+        }, 1000);
+      });
+      
+      // Performance monitoring
+      window.addEventListener('load', function() {
+        if (window.performance && window.performance.timing) {
+          const loadTime = window.performance.timing.loadEventEnd - window.performance.timing.navigationStart;
+          console.log('Page load time:', loadTime + 'ms');
+        }
+      });
+    </script>
+  </body>
+</html>
